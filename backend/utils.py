@@ -144,3 +144,16 @@ if ($hWnd -ne [IntPtr]::Zero) {{
 Add-Type -AssemblyName System.Windows.Forms
 [System.Windows.Forms.SendKeys]::SendWait('{safe_text}')
 """
+
+# Script to get DPI Scale
+GET_DPI_SCRIPT = """
+try {
+    Add-Type -AssemblyName System.Drawing
+    $g = [System.Drawing.Graphics]::FromHwnd([IntPtr]::Zero)
+    $dpi = $g.DpiX
+    $g.Dispose()
+    Write-Output $dpi
+} catch {
+    Write-Output 96
+}
+"""

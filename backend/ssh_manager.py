@@ -3,7 +3,7 @@ import os
 import time
 import re
 import base64
-from backend.utils import OVERLAY_CMD_TEMPLATE, SCREENSHOT_SCRIPT, generate_mouse_move_script, CLICK_SCRIPT, DOUBLE_CLICK_SCRIPT, generate_type_script
+from backend.utils import OVERLAY_CMD_TEMPLATE, SCREENSHOT_SCRIPT, generate_mouse_move_script, CLICK_SCRIPT, DOUBLE_CLICK_SCRIPT, generate_type_script, GET_DPI_SCRIPT
 
 class SSHManager:
     def __init__(self):
@@ -14,6 +14,7 @@ class SSHManager:
         self.password = None
         self.pstools_path = None
         self.session_id = None
+        self.dpi_scale = 1.0
 
     def connect(self):
         # Load config lazy to ensure env vars are loaded
@@ -115,6 +116,9 @@ class SSHManager:
             
         print(f"Found Session ID: {self.session_id}")
         
+        # Get DPI Scale
+        self.get_dpi_scale()
+        
         cmd = OVERLAY_CMD_TEMPLATE.format(session_id=self.session_id)
         
         # We run this asynchronously or check if it blocks. 
@@ -134,7 +138,28 @@ class SSHManager:
         cmd = cmd.replace("psexec -accepteula", "psexec -d -accepteula")
         
         out, err = self.execute_command(cmd)
-        return True, f"Overlay launched on session {self.session_id}. Output: {out}"
+        return True, f"Overlay launched on session {self.session_id}. Output: {out} DPI Scale: {self.dpi_scale}"
+
+    def get_dpi_scale(self):
+        # Run DPI script
+        encoded_bytes = base64.b64encode(GET_DPI_SCRIPT.encode('utf-16le'))
+        encoded_str = encoded_bytes.decode('utf-8')
+        cmd = f'psexec -accepteula -i {self.session_id} -s powershell -WindowStyle Hidden -ExecutionPolicy Bypass -NoProfile -EncodedCommand {encoded_str}'
+        
+        out, err = self.execute_command(cmd)
+        try:
+            # Output might contain psexec banner, so look for the last number
+            # or clean output. Usually just the number if -NoProfile is used but psexec adds noise.
+            # Let's search for a number roughly between 96 and 500
+            match = re.search(r'(\d+)', out)
+            if match:
+                dpi = float(match.group(1))
+                self.dpi_scale = dpi / 96.0
+                print(f"Detected DPI: {dpi} Scale: {self.dpi_scale}")
+            else:
+                print(f"Could not parse DPI from: {out}")
+        except Exception as e:
+            print(f"Error parsing DPI: {e}")
 
     def perform_action(self, action_type, x=0, y=0, text=""):
         if not self.connect():
@@ -145,6 +170,12 @@ class SSHManager:
             self.session_id = self.get_active_session_id()
             if not self.session_id: 
                  return None, "No active session known. Please calling /start first."
+
+        # Apply Scaling
+        if self.dpi_scale != 1.0 and (x != 0 or y != 0):
+            print(f"Scaling coords ({x},{y}) by {self.dpi_scale} -> ({int(x*self.dpi_scale)}, {int(y*self.dpi_scale)})")
+            x = int(x * self.dpi_scale)
+            y = int(y * self.dpi_scale)
 
         # 1. Provide Input
         ps_script = ""
