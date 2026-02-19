@@ -101,11 +101,46 @@ Start-Sleep -Milliseconds 50
 [Win32Mouse]::mouse_event(0x0004, 0, 0, 0, 0) # Up
 """
 
-# Helper to type text
+# Helper to type text (with Focus restoration)
 def generate_type_script(text):
     # Escape single quotes for PowerShell
     safe_text = text.replace("'", "''")
+    
     return f"""
+$csharpSource = @'
+using System;
+using System.Runtime.InteropServices;
+
+public class Win32Key {{
+    [DllImport("user32.dll")] public static extern bool GetCursorPos(out POINT lpPoint);
+    [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(POINT Point);
+    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct POINT {{ public int X; public int Y; }}
+}}
+'@
+
+try {{
+    Add-Type -TypeDefinition $csharpSource -Language CSharp
+}} catch {{
+    # Ignore if already added
+}}
+
+# 1. Get Mouse Position
+$p = New-Object Win32Key+POINT
+[Win32Key]::GetCursorPos([ref]$p) | Out-Null
+
+# 2. Get Window at Mouse
+$hWnd = [Win32Key]::WindowFromPoint($p)
+
+# 3. Force Focus (Restore focus from terminal)
+if ($hWnd -ne [IntPtr]::Zero) {{
+    [Win32Key]::SetForegroundWindow($hWnd) | Out-Null
+    Start-Sleep -Milliseconds 200
+}}
+
+# 4. Send Keys
 Add-Type -AssemblyName System.Windows.Forms
 [System.Windows.Forms.SendKeys]::SendWait('{safe_text}')
 """
