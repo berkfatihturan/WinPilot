@@ -47,40 +47,56 @@ def generate_mouse_move_script(x, y):
 
 # Helper to click (using user32.dll for proper simulation and focus)
 # Helper to click (using user32.dll for proper simulation)
+# Helper to click (using user32.dll with robust definition)
 CLICK_SCRIPT = """
-$code = @'
-    using System;
-    using System.Runtime.InteropServices;
-    public class MouseUtils {
-        [DllImport("user32.dll")] public static extern void mouse_event(int dwFlags, int dx, int dy, int cButtons, int dwExtraInfo);
-    }
-'@
-$mouse = Add-Type -MemberDefinition $code -Name "MouseUtils" -Namespace Win32 -PassThru
+$csharpSource = @'
+using System;
+using System.Runtime.InteropServices;
 
-# Click
-$mouse::mouse_event(0x0001, 0, 0, 0, 0) # Move (Wakeup)
-$mouse::mouse_event(0x0002, 0, 0, 0, 0) # LeftDown
+public class Win32Mouse {
+    [DllImport("user32.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
+    public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint cButtons, uint dwExtraInfo);
+}
+'@
+
+try {
+    Add-Type -TypeDefinition $csharpSource -Language CSharp
+} catch {
+    # If type already exists in session, ignore
+}
+
+# Mouse codes
+# MOUSEEVENTF_LEFTDOWN = 0x0002
+# MOUSEEVENTF_LEFTUP = 0x0004
+
+[Win32Mouse]::mouse_event(0x0002, 0, 0, 0, 0)
 Start-Sleep -Milliseconds 50
-$mouse::mouse_event(0x0004, 0, 0, 0, 0) # LeftUp
+[Win32Mouse]::mouse_event(0x0004, 0, 0, 0, 0)
 """
 
 DOUBLE_CLICK_SCRIPT = """
-$code = @'
-    using System;
-    using System.Runtime.InteropServices;
-    public class MouseUtils {
-        [DllImport("user32.dll")] public static extern void mouse_event(int dwFlags, int dx, int dy, int cButtons, int dwExtraInfo);
-    }
-'@
-$mouse = Add-Type -MemberDefinition $code -Name "MouseUtils" -Namespace Win32 -PassThru
+$csharpSource = @'
+using System;
+using System.Runtime.InteropServices;
 
-# Double Click
-$mouse::mouse_event(0x0001, 0, 0, 0, 0) # Move (Wakeup)
-$mouse::mouse_event(0x0002, 0, 0, 0, 0) # LeftDown
+public class Win32Mouse {
+    [DllImport("user32.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
+    public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint cButtons, uint dwExtraInfo);
+}
+'@
+
+try {
+    Add-Type -TypeDefinition $csharpSource -Language CSharp
+} catch {
+    # If type already exists in session, ignore
+}
+
+# Double Click Sequence
+[Win32Mouse]::mouse_event(0x0002, 0, 0, 0, 0) # Down
 Start-Sleep -Milliseconds 50
-$mouse::mouse_event(0x0004, 0, 0, 0, 0) # LeftUp
+[Win32Mouse]::mouse_event(0x0004, 0, 0, 0, 0) # Up
 Start-Sleep -Milliseconds 100
-$mouse::mouse_event(0x0002, 0, 0, 0, 0) # LeftDown
+[Win32Mouse]::mouse_event(0x0002, 0, 0, 0, 0) # Down
 Start-Sleep -Milliseconds 50
-$mouse::mouse_event(0x0004, 0, 0, 0, 0) # LeftUp
+[Win32Mouse]::mouse_event(0x0004, 0, 0, 0, 0) # Up
 """
