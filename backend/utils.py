@@ -58,6 +58,7 @@ $code = @'
 $mouse = Add-Type -MemberDefinition $code -Name "MouseUtils" -Namespace Win32 -PassThru
 
 # Click
+$mouse::mouse_event(0x0001, 0, 0, 0, 0) # Move (Wakeup)
 $mouse::mouse_event(0x0002, 0, 0, 0, 0) # LeftDown
 Start-Sleep -Milliseconds 50
 $mouse::mouse_event(0x0004, 0, 0, 0, 0) # LeftUp
@@ -74,6 +75,7 @@ $code = @'
 $mouse = Add-Type -MemberDefinition $code -Name "MouseUtils" -Namespace Win32 -PassThru
 
 # Double Click
+$mouse::mouse_event(0x0001, 0, 0, 0, 0) # Move (Wakeup)
 $mouse::mouse_event(0x0002, 0, 0, 0, 0) # LeftDown
 Start-Sleep -Milliseconds 50
 $mouse::mouse_event(0x0004, 0, 0, 0, 0) # LeftUp
