@@ -100,3 +100,12 @@ Start-Sleep -Milliseconds 100
 Start-Sleep -Milliseconds 50
 [Win32Mouse]::mouse_event(0x0004, 0, 0, 0, 0) # Up
 """
+
+# Helper to type text
+def generate_type_script(text):
+    # Escape single quotes for PowerShell
+    safe_text = text.replace("'", "''")
+    return f"""
+Add-Type -AssemblyName System.Windows.Forms
+[System.Windows.Forms.SendKeys]::SendWait('{safe_text}')
+"""

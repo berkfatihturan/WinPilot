@@ -3,7 +3,7 @@ import os
 import time
 import re
 import base64
-from backend.utils import OVERLAY_CMD_TEMPLATE, SCREENSHOT_SCRIPT, generate_mouse_move_script, CLICK_SCRIPT, DOUBLE_CLICK_SCRIPT
+from backend.utils import OVERLAY_CMD_TEMPLATE, SCREENSHOT_SCRIPT, generate_mouse_move_script, CLICK_SCRIPT, DOUBLE_CLICK_SCRIPT, generate_type_script
 
 class SSHManager:
     def __init__(self):
@@ -165,6 +165,8 @@ class SSHManager:
                  ps_script = generate_mouse_move_script(x, y) + "\n" + DOUBLE_CLICK_SCRIPT
             else:
                  ps_script = DOUBLE_CLICK_SCRIPT
+        elif action_type == "type":
+            ps_script = generate_type_script(text)
         
         if ps_script:
             # Run PowerShell command inside the session via psexec using Base64

@@ -56,6 +56,11 @@
             <label><input type="radio" name="clickMode" value="click" checked> Single Click</label>
             <label><input type="radio" name="clickMode" value="double_click"> Double Click</label>
         </div>
+
+        <div style="margin-top: 10px; display: flex; justify-content: center; gap: 10px;">
+            <input type="text" id="typeText" placeholder="Type info here..." style="padding: 5px; font-size: 16px;">
+            <button onclick="sendText()">SEND TEXT</button>
+        </div>
     </div>
 
     <div id="status">Ready</div>
@@ -90,13 +95,19 @@
             document.getElementById("status").innerText = "Session Stopped";
         }
 
-        async function performAction(type, x, y) {
+        async function sendText() {
+            const text = document.getElementById("typeText").value;
+            if (!text) return;
+            performAction("type", 0, 0, text);
+        }
+
+        async function performAction(type, x, y, text = "") {
             document.getElementById("status").innerText = "Executing " + type + "...";
             try {
                 let res = await fetch(API_URL + "/action", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ type: type, x: x, y: y })
+                    body: JSON.stringify({ type: type, x: x, y: y, text: text })
                 });
                 let data = await res.json();
                 if (res.ok) {

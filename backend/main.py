@@ -20,9 +20,10 @@ app.add_middleware(
 )
 
 class ActionRequest(BaseModel):
-    type: str # 'move', 'click', 'none'
+    type: str # 'move', 'click', 'double_click', 'type', 'none'
     x: int = 0
     y: int = 0
+    text: str = ""
 
 
 from fastapi.staticfiles import StaticFiles
@@ -48,7 +49,7 @@ def process_actions():
             
             # Execute the blocking SSH operation
             try:
-                result = ssh_manager.perform_action(task.type, task.x, task.y)
+                result = ssh_manager.perform_action(task.type, task.x, task.y, text=task.text)
                 if not future.cancelled():
                     future.set_result(result)
             except Exception as e:
