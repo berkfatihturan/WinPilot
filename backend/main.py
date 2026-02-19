@@ -30,17 +30,51 @@ from fastapi.staticfiles import StaticFiles
 os.makedirs("screenshots", exist_ok=True)
 app.mount("/screenshots", StaticFiles(directory="screenshots"), name="screenshots")
 
+import queue
+import threading
+from concurrent.futures import Future
+
+# Job Queue to serialize SSH operations
+action_queue = queue.Queue()
+
+def process_actions():
+    """Worker thread to process actions sequentially."""
+    print("Action Worker Started")
+    while True:
+        try:
+            task, future = action_queue.get()
+            if task is None:
+                break
+            
+            # Execute the blocking SSH operation
+            try:
+                result = ssh_manager.perform_action(task.type, task.x, task.y)
+                if not future.cancelled():
+                    future.set_result(result)
+            except Exception as e:
+                if not future.cancelled():
+                    future.set_exception(e)
+            finally:
+                action_queue.task_done()
+        except Exception as e:
+            print(f"Worker Error: {e}")
+
+# Start worker thread
+worker_thread = threading.Thread(target=process_actions, daemon=True)
+worker_thread.start()
+
 @app.get("/")
 def read_root():
     return FileResponse("frontend/index.html")
 
 @app.get("/status")
 def get_status():
-    return {"Status": "Active", "Host": os.getenv("REMOTE_HOST")}
+    return {"Status": "Active", "Host": os.getenv("REMOTE_HOST"), "QueueSize": action_queue.qsize()}
 
 @app.post("/start")
-
 def start_session():
+    # Ideally start should also be queued or mutexed, but for now we assume start is called once.
+    # We could check if a session is already active.
     success, msg = ssh_manager.launch_overlay()
     if not success:
         raise HTTPException(status_code=500, detail=msg)
@@ -48,13 +82,26 @@ def start_session():
 
 @app.post("/action")
 def do_action(req: ActionRequest):
-    # Perform action and get screenshot
-    filename, error = ssh_manager.perform_action(req.type, req.x, req.y)
-    if error:
-        raise HTTPException(status_code=500, detail=error)
+    # Create a Future to track the result of this specific job
+    future = Future()
     
-    # Return the screenshot URL 
-    return {"status": "success", "screenshot_url": f"/screenshots/{filename}"}
+    # Put the job in the queue
+    action_queue.put((req, future))
+    
+    # Wait for the result (max 60 seconds to prevent indefinite hang)
+    try:
+        # Result is a tuple: (filename, error)
+        filename, error = future.result(timeout=60)
+        
+        if error:
+            raise HTTPException(status_code=500, detail=error)
+        
+        return {"status": "success", "screenshot_url": f"/screenshots/{filename}"}
+        
+    except TimeoutError:
+        raise HTTPException(status_code=504, detail="Action timed out in queue")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/stop")
 def stop_session():
