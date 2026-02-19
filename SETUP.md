@@ -35,14 +35,14 @@ Start the backend server using `uvicorn`:
 
 ```bash
 # Must be run from the 'remote_automation' directory
-uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn backend.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
--   **Backend API**: `http://localhost:8000`
--   **Frontend Dashboard**: `http://localhost:8000/`
+-   **Backend API**: `http://localhost:8001`
+-   **Frontend Dashboard**: `http://localhost:8001/`
 
 ## 5. Usage (Dashboard)
-1.  Open `http://localhost:8000/` in your browser.
+1.  Open `http://localhost:8001/` in your browser.
 2.  Click **START SESSION**.
     -   Wait for "Session Started" message.
     -   A green overlay (coordinates) should appear on the remote Windows screen.
@@ -52,7 +52,9 @@ uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
     -   A new screenshot will appear after a few seconds.
 4.  **Double Click**:
     -   Select "Double Click" radio button to perform double clicks.
-5.  **Stop**: copy
+5.  **Send Text**:
+    -   Enter text in the input box and click **SEND TEXT** to type on the remote machine.
+6.  **Stop**: copy
     -   Always click **STOP SESSION** when finished to close SSH connections.
 
 ## Troubleshooting
