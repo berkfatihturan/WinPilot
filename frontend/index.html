@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remote Control Dashboard</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background: #222;
+            color: #fff;
+            text-align: center;
+        }
+
+        #screen-container {
+            position: relative;
+            display: inline-block;
+            margin-top: 20px;
+            border: 2px solid #555;
+        }
+
+        #screenshot {
+            max-width: 100%;
+            cursor: crosshair;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #444;
+            color: #fff;
+            border: 1px solid #666;
+        }
+
+        button:hover {
+            background: #555;
+        }
+
+        .controls {
+            margin: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Remote Automation Dashboard</h1>
+
+    <div class="controls">
+        <button onclick="startSession()">START SESSION</button>
+        <button onclick="stopSession()">STOP SESSION</button>
+
+        <div style="margin-top: 10px;">
+            <label><input type="radio" name="clickMode" value="click" checked> Single Click</label>
+            <label><input type="radio" name="clickMode" value="double_click"> Double Click</label>
+        </div>
+    </div>
+
+    <div id="status">Ready</div>
+
+    <div id="screen-container">
+        <img id="screenshot" src="" alt="Waiting for session..." onclick="handleImageClick(event)">
+    </div>
+
+
+    <script>
+        const API_URL = "";
+
+        async function startSession() {
+            document.getElementById("status").innerText = "Connecting...";
+            try {
+                let res = await fetch(API_URL + "/start", { method: "POST" });
+                let data = await res.json();
+                if (res.ok) {
+                    document.getElementById("status").innerText = "Session Started: " + data.message;
+                    // Trigger an initial fake action to get the first screenshot
+                    performAction('none', 0, 0);
+                } else {
+                    document.getElementById("status").innerText = "Error: " + data.detail;
+                }
+            } catch (e) {
+                document.getElementById("status").innerText = "Connection Error: " + e;
+            }
+        }
+
+        async function stopSession() {
+            await fetch(API_URL + "/stop", { method: "POST" });
+            document.getElementById("status").innerText = "Session Stopped";
+        }
+
+        async function performAction(type, x, y) {
+            document.getElementById("status").innerText = "Executing " + type + "...";
+            try {
+                let res = await fetch(API_URL + "/action", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ type: type, x: x, y: y })
+                });
+                let data = await res.json();
+                if (res.ok) {
+                    document.getElementById("status").innerText = "Done. Updating view...";
+                    // Update image with new timestamped URL
+                    console.log("New screenshot URL:", data.screenshot_url);
+                    document.getElementById("screenshot").src = API_URL + data.screenshot_url;
+                    document.getElementById("screenshot").style.display = "block"; // Ensure it is visible
+                } else {
+                    document.getElementById("status").innerText = "Action Error: " + data.detail;
+                    console.error("Action Error:", data);
+                }
+            } catch (e) {
+                document.getElementById("status").innerText = "Req Error: " + e;
+            }
+        }
+
+        function handleImageClick(event) {
+            const img = document.getElementById("screenshot");
+            const rect = img.getBoundingClientRect();
+
+            const x = Math.round(event.clientX - rect.left);
+            const y = Math.round(event.clientY - rect.top);
+
+            const mode = document.querySelector('input[name="clickMode"]:checked').value;
+
+            console.log("Action at: ", x, y, mode);
+            performAction(mode, x, y);
+        }
+    </script>
+</body>
+
+</html>
