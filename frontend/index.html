@@ -111,11 +111,16 @@
                 });
                 let data = await res.json();
                 if (res.ok) {
-                    document.getElementById("status").innerText = "Done. Updating view...";
+                    let msg = "Done. Updating view...";
+                    if (data.width && data.height) {
+                        msg = `Done (Original: ${data.width}x${data.height}). Updating view...`;
+                    }
+                    document.getElementById("status").innerText = msg;
                     // Update image with new timestamped URL
                     console.log("New screenshot URL:", data.screenshot_url);
-                    document.getElementById("screenshot").src = API_URL + data.screenshot_url;
-                    document.getElementById("screenshot").style.display = "block"; // Ensure it is visible
+                    const img = document.getElementById("screenshot");
+                    img.src = API_URL + data.screenshot_url;
+                    img.style.display = "block"; // Ensure it is visible
                 } else {
                     document.getElementById("status").innerText = "Action Error: " + data.detail;
                     console.error("Action Error:", data);
@@ -129,12 +134,21 @@
             const img = document.getElementById("screenshot");
             const rect = img.getBoundingClientRect();
 
-            const x = Math.round(event.clientX - rect.left);
-            const y = Math.round(event.clientY - rect.top);
+            // Coordinate relative to the displayed image box
+            const clientX = event.clientX - rect.left;
+            const clientY = event.clientY - rect.top;
+
+            // Map to the actual resolution of the image (natural size)
+            // This is what the AI should "see" (the raw pixels) if it downloads the image.
+            const scaleX = img.naturalWidth / img.clientWidth;
+            const scaleY = img.naturalHeight / img.clientHeight;
+
+            const x = Math.round(clientX * scaleX);
+            const y = Math.round(clientY * scaleY);
 
             const mode = document.querySelector('input[name="clickMode"]:checked').value;
 
-            console.log("Action at: ", x, y, mode);
+            console.log(`Click: Client(${clientX},${clientY}) -> Natural(${x},${y}) Mode:${mode}`);
             performAction(mode, x, y);
         }
     </script>

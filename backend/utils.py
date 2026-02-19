@@ -29,8 +29,20 @@ try {
     $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
     $graphics.CopyFromScreen($screen.Bounds.X, $screen.Bounds.Y, 0, 0, $bitmap.Size)
     $bitmap.Save('C:\\Windows\\Temp\\screenshot.png', [System.Drawing.Imaging.ImageFormat]::Png)
+    Write-Output "SCREEN_DIMENSIONS:$($bitmap.Width)x$($bitmap.Height)"
     $graphics.Dispose()
     $bitmap.Dispose()
+} catch {
+    Write-Error $_
+    exit 1
+}
+"""
+
+GET_RESOLUTION_SCRIPT = """
+try {
+    Add-Type -AssemblyName System.Windows.Forms
+    $screen = [System.Windows.Forms.Screen]::PrimaryScreen
+    Write-Output "LOGICAL_RESOLUTION:$($screen.Bounds.Width)x$($screen.Bounds.Height)"
 } catch {
     Write-Error $_
     exit 1
@@ -143,17 +155,4 @@ if ($hWnd -ne [IntPtr]::Zero) {{
 # 4. Send Keys
 Add-Type -AssemblyName System.Windows.Forms
 [System.Windows.Forms.SendKeys]::SendWait('{safe_text}')
-"""
-
-# Script to get DPI Scale
-GET_DPI_SCRIPT = """
-try {
-    Add-Type -AssemblyName System.Drawing
-    $g = [System.Drawing.Graphics]::FromHwnd([IntPtr]::Zero)
-    $dpi = $g.DpiX
-    $g.Dispose()
-    Write-Output $dpi
-} catch {
-    Write-Output 96
-}
 """

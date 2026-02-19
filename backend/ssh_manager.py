@@ -3,7 +3,7 @@ import os
 import time
 import re
 import base64
-from backend.utils import OVERLAY_CMD_TEMPLATE, SCREENSHOT_SCRIPT, generate_mouse_move_script, CLICK_SCRIPT, DOUBLE_CLICK_SCRIPT, generate_type_script, GET_DPI_SCRIPT
+from backend.utils import OVERLAY_CMD_TEMPLATE, SCREENSHOT_SCRIPT, GET_RESOLUTION_SCRIPT, generate_mouse_move_script, CLICK_SCRIPT, DOUBLE_CLICK_SCRIPT, generate_type_script
 
 class SSHManager:
     def __init__(self):
@@ -14,7 +14,27 @@ class SSHManager:
         self.password = None
         self.pstools_path = None
         self.session_id = None
-        self.dpi_scale = 1.0
+        self.logical_width = 0
+        self.logical_height = 0
+
+    def _update_resolution(self):
+        if not self.connect() or not self.session_id:
+            return
+
+        # Run resolution script
+        encoded_bytes = base64.b64encode(GET_RESOLUTION_SCRIPT.encode('utf-16le'))
+        encoded_str = encoded_bytes.decode('utf-8')
+        cmd = f'psexec -accepteula -i {self.session_id} -s powershell -WindowStyle Hidden -ExecutionPolicy Bypass -NoProfile -EncodedCommand {encoded_str}'
+        
+        out, err = self.execute_command(cmd)
+        # Parse LOGICAL_RESOLUTION:1920x1080
+        match = re.search(r"LOGICAL_RESOLUTION:(\d+)x(\d+)", out)
+        if match:
+            self.logical_width = int(match.group(1))
+            self.logical_height = int(match.group(2))
+            print(f"Detected Logical Resolution: {self.logical_width}x{self.logical_height}")
+        else:
+            print(f"Failed to detect resolution: {out} {err}")
 
     def connect(self):
         # Load config lazy to ensure env vars are loaded
@@ -116,9 +136,6 @@ class SSHManager:
             
         print(f"Found Session ID: {self.session_id}")
         
-        # Get DPI Scale
-        self.get_dpi_scale()
-        
         cmd = OVERLAY_CMD_TEMPLATE.format(session_id=self.session_id)
         
         # We run this asynchronously or check if it blocks. 
@@ -138,66 +155,58 @@ class SSHManager:
         cmd = cmd.replace("psexec -accepteula", "psexec -d -accepteula")
         
         out, err = self.execute_command(cmd)
-        return True, f"Overlay launched on session {self.session_id}. Output: {out} DPI Scale: {self.dpi_scale}"
-
-    def get_dpi_scale(self):
-        # Run DPI script
-        encoded_bytes = base64.b64encode(GET_DPI_SCRIPT.encode('utf-16le'))
-        encoded_str = encoded_bytes.decode('utf-8')
-        cmd = f'psexec -accepteula -i {self.session_id} -s powershell -WindowStyle Hidden -ExecutionPolicy Bypass -NoProfile -EncodedCommand {encoded_str}'
-        
-        out, err = self.execute_command(cmd)
-        try:
-            # Output might contain psexec banner, so look for the last number
-            # or clean output. Usually just the number if -NoProfile is used but psexec adds noise.
-            # Let's search for a number roughly between 96 and 500
-            match = re.search(r'(\d+)', out)
-            if match:
-                dpi = float(match.group(1))
-                self.dpi_scale = dpi / 96.0
-                print(f"Detected DPI: {dpi} Scale: {self.dpi_scale}")
-            else:
-                print(f"Could not parse DPI from: {out}")
-        except Exception as e:
-            print(f"Error parsing DPI: {e}")
+        return True, f"Overlay launched on session {self.session_id}. Output: {out}"
 
     def perform_action(self, action_type, x=0, y=0, text=""):
         if not self.connect():
-            return None, "Not connected"
+            return None, "Not connected", 0, 0
             
         if not self.session_id:
             # Try to recover session ID if missing (e.g. restart)
             self.session_id = self.get_active_session_id()
             if not self.session_id: 
-                 return None, "No active session known. Please calling /start first."
+                 return None, "No active session known. Please calling /start first.", 0, 0
 
-        # Apply Scaling
-        if self.dpi_scale != 1.0 and (x != 0 or y != 0):
-            print(f"Scaling coords ({x},{y}) by {self.dpi_scale} -> ({int(x*self.dpi_scale)}, {int(y*self.dpi_scale)})")
-            x = int(x * self.dpi_scale)
-            y = int(y * self.dpi_scale)
+        # Update resolution info if missing
+        if self.logical_width == 0:
+            self._update_resolution()
+
+        # Calculate Scaling
+        # We assume X,Y provided are based on the Physical (Screenshot) pixels.
+        # We need to translate them to Logical (System) pixels for SetCursorPos.
+        target_x = x
+        target_y = y
+        
+        # We need physical dims to calculate scale. If we processed a screenshot before, we have them.
+        # If not, we might be flying blind on the very first click if it's high DPI.
+        # But usually users "Observe" (get screenshot) then "Act".
+        # If we have tracked physical dimensions:
+        if hasattr(self, 'physical_width') and self.physical_width > 0 and self.logical_width > 0:
+            scale_x = self.logical_width / self.physical_width
+            scale_y = self.logical_height / self.physical_height
+            target_x = int(x * scale_x)
+            target_y = int(y * scale_y)
+            # print(f"Scaling: {x},{y} -> {target_x},{target_y} (Scale: {scale_x:.2f})")
 
         # 1. Provide Input
         ps_script = ""
         if action_type == "move":
-            ps_script = generate_mouse_move_script(x, y)
+            ps_script = generate_mouse_move_script(target_x, target_y)
         elif action_type == "click":
-            # Just click where it is or move then click?
-            # User API has x,y. Let's move then click if x,y provided.
-            # But the ActionRequest loop logic in main is generic.
-            # Let's assume 'click' implies click at current pos, or we move first.
-            # Simple approach: If x,y != 0, move first.
-            if x != 0 or y!= 0:
-                 ps_script = generate_mouse_move_script(x, y) + "\n" + CLICK_SCRIPT
+            if target_x != 0 or target_y!= 0:
+                 ps_script = generate_mouse_move_script(target_x, target_y) + "\n" + CLICK_SCRIPT
             else:
                  ps_script = CLICK_SCRIPT
         elif action_type == "double_click":
-            if x != 0 or y!= 0:
-                 ps_script = generate_mouse_move_script(x, y) + "\n" + DOUBLE_CLICK_SCRIPT
-            else:
+             if target_x != 0 or target_y!= 0:
+                 ps_script = generate_mouse_move_script(target_x, target_y) + "\n" + DOUBLE_CLICK_SCRIPT
+             else:
                  ps_script = DOUBLE_CLICK_SCRIPT
         elif action_type == "type":
             ps_script = generate_type_script(text)
+        elif action_type == "none":
+            # Just screenshot
+            pass
         
         if ps_script:
             # Run PowerShell command inside the session via psexec using Base64
@@ -205,9 +214,8 @@ class SSHManager:
             encoded_str = encoded_bytes.decode('utf-8')
             
             cmd = f'psexec -accepteula -i {self.session_id} -s powershell -WindowStyle Hidden -ExecutionPolicy Bypass -NoProfile -EncodedCommand {encoded_str}'
-            print(f"DEBUG INPUT CMD: {cmd}") 
-            out, err = self.execute_command(cmd)
-
+            # print(f"DEBUG INPUT CMD: {cmd}") 
+            self.execute_command(cmd)
 
         # 2. Capture Screenshot
         self.execute_command("del C:\\Windows\\Temp\\screenshot.png")
@@ -217,13 +225,25 @@ class SSHManager:
         encoded_str = encoded_bytes.decode('utf-8')
         
         cmd = f'psexec -accepteula -i {self.session_id} -s powershell -WindowStyle Hidden -ExecutionPolicy Bypass -NoProfile -EncodedCommand {encoded_str}'
-        print(f"DEBUG SCREENSHOT CMD: {cmd}")
+        # print(f"DEBUG SCREENSHOT CMD: {cmd}")
         out, err = self.execute_command(cmd)
+        
+        # Parse Dimensions from output
+        # Expecting: SCREEN_DIMENSIONS:1920x1080
+        width = 0
+        height = 0
+        match = re.search(r"SCREEN_DIMENSIONS:(\d+)x(\d+)", out)
+        if match:
+            width = int(match.group(1))
+            height = int(match.group(2))
+            # Store for next time scaling
+            self.physical_width = width
+            self.physical_height = height
         
         # Check if screenshot exists remotely
         check_out, _ = self.execute_command("if exist C:\\Windows\\Temp\\screenshot.png (echo YES) else (echo NO)")
         if "NO" in check_out:
-             return None, f"Screenshot not created on remote. SCR_OUT: {out} SCR_ERR: {err}"
+             return None, f"Screenshot not created on remote. SCR_OUT: {out} SCR_ERR: {err}", 0, 0
         
         # 3. Download Screenshot with Timestamp
         timestamp = int(time.time())
@@ -234,8 +254,8 @@ class SSHManager:
         
         try:
             self.sftp.get('C:\\Windows\\Temp\\screenshot.png', local_path)
-            return filename, None
+            return filename, None, width, height
         except Exception as e:
-            return None, f"Failed to retrieve screenshot: {e} | Remote Out: {out} Remote Err: {err}"
+            return None, f"Failed to retrieve screenshot: {e} | Remote Out: {out} Remote Err: {err}", 0, 0
 
 ssh_manager = SSHManager()

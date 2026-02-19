@@ -91,13 +91,18 @@ def do_action(req: ActionRequest):
     
     # Wait for the result (max 60 seconds to prevent indefinite hang)
     try:
-        # Result is a tuple: (filename, error)
-        filename, error = future.result(timeout=60)
+        # Result is a tuple: (filename, error, width, height)
+        filename, error, width, height = future.result(timeout=60)
         
         if error:
             raise HTTPException(status_code=500, detail=error)
         
-        return {"status": "success", "screenshot_url": f"/screenshots/{filename}"}
+        return {
+            "status": "success", 
+            "screenshot_url": f"/screenshots/{filename}",
+            "width": width,
+            "height": height
+        }
         
     except TimeoutError:
         raise HTTPException(status_code=504, detail="Action timed out in queue")
