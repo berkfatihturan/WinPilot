@@ -24,6 +24,7 @@ class ActionRequest(BaseModel):
     x: int = 0
     y: int = 0
     text: str = ""
+    grid: bool = False
 
 
 from fastapi.staticfiles import StaticFiles
@@ -49,7 +50,7 @@ def process_actions():
             
             # Execute the blocking SSH operation
             try:
-                result = ssh_manager.perform_action(task.type, task.x, task.y, text=task.text)
+                result = ssh_manager.perform_action(task.type, task.x, task.y, text=task.text, grid=task.grid)
                 if not future.cancelled():
                     future.set_result(result)
             except Exception as e:

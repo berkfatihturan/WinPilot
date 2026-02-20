@@ -3,7 +3,7 @@ import os
 import time
 import re
 import base64
-from backend.utils import OVERLAY_CMD_TEMPLATE, SCREENSHOT_SCRIPT, GET_RESOLUTION_SCRIPT, generate_mouse_move_script, CLICK_SCRIPT, DOUBLE_CLICK_SCRIPT, generate_type_script
+from backend.utils import OVERLAY_CMD_TEMPLATE, generate_screenshot_script, GET_RESOLUTION_SCRIPT, generate_mouse_move_script, CLICK_SCRIPT, DOUBLE_CLICK_SCRIPT, generate_type_script
 
 class SSHManager:
     def __init__(self):
@@ -157,7 +157,7 @@ class SSHManager:
         out, err = self.execute_command(cmd)
         return True, f"Overlay launched on session {self.session_id}. Output: {out}"
 
-    def perform_action(self, action_type, x=0, y=0, text=""):
+    def perform_action(self, action_type, x=0, y=0, text="", grid=False):
         if not self.connect():
             return None, "Not connected", 0, 0
             
@@ -221,7 +221,10 @@ class SSHManager:
         self.execute_command("del C:\\Windows\\Temp\\screenshot.png")
         
         # Run Screenshot script with Base64
-        encoded_bytes = base64.b64encode(SCREENSHOT_SCRIPT.encode('utf-16le'))
+        # NEW: Use dynamic generation with grid option
+        scr_script = generate_screenshot_script(draw_grid=grid, draw_cursor=True)
+        
+        encoded_bytes = base64.b64encode(scr_script.encode('utf-16le'))
         encoded_str = encoded_bytes.decode('utf-8')
         
         cmd = f'psexec -accepteula -i {self.session_id} -s powershell -WindowStyle Hidden -ExecutionPolicy Bypass -NoProfile -EncodedCommand {encoded_str}'

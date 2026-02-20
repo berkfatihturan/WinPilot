@@ -20,15 +20,30 @@ OVERLAY_CMD_TEMPLATE = (
 )
 
 # Script to take a full screenshot and save it to a temp path
-SCREENSHOT_SCRIPT = """
-try {
-    Add-Type -AssemblyName System.Windows.Forms
-    Add-Type -AssemblyName System.Drawing
-    $screen = [System.Windows.Forms.Screen]::PrimaryScreen
-    $bitmap = New-Object System.Drawing.Bitmap $screen.Bounds.Width, $screen.Bounds.Height
-    $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
-    $graphics.CopyFromScreen($screen.Bounds.X, $screen.Bounds.Y, 0, 0, $bitmap.Size)
+def generate_screenshot_script(draw_grid=False, draw_cursor=True):
+    grid_logic = ""
+    if draw_grid:
+        grid_logic = """
+    # Draw Grid (10x10)
+    $pen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(128, [System.Drawing.Color]::Cyan), 1)
+    $width = $screen.Bounds.Width
+    $height = $screen.Bounds.Height
     
+    for ($i = 1; $i -lt 10; $i++) {
+        $x = [int]($width * $i / 10)
+        $y = [int]($height * $i / 10)
+        
+        # Vertical Line
+        $graphics.DrawLine($pen, $x, 0, $x, $height)
+        # Horizontal Line
+        $graphics.DrawLine($pen, 0, $y, $width, $y)
+    }
+    $pen.Dispose()
+"""
+
+    cursor_logic = ""
+    if draw_cursor:
+        cursor_logic = """
     # Draw Red Cursor
     $cursor = [System.Windows.Forms.Cursor]::Position
     $relX = $cursor.X - $screen.Bounds.X
@@ -36,16 +51,28 @@ try {
     $brush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::Red)
     $graphics.FillEllipse($brush, $relX - 5, $relY - 5, 10, 10)
     $brush.Dispose()
+"""
 
-    $bitmap.Save('C:\\Windows\\Temp\\screenshot.png', [System.Drawing.Imaging.ImageFormat]::Png)
-    $bitmap.Save('C:\\Windows\\Temp\\screenshot.png', [System.Drawing.Imaging.ImageFormat]::Png)
+    return f"""
+try {{
+    Add-Type -AssemblyName System.Windows.Forms
+    Add-Type -AssemblyName System.Drawing
+    $screen = [System.Windows.Forms.Screen]::PrimaryScreen
+    $bitmap = New-Object System.Drawing.Bitmap $screen.Bounds.Width, $screen.Bounds.Height
+    $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+    $graphics.CopyFromScreen($screen.Bounds.X, $screen.Bounds.Y, 0, 0, $bitmap.Size)
+    
+    {grid_logic}
+    {cursor_logic}
+
+    $bitmap.Save('C:\\\\Windows\\\\Temp\\\\screenshot.png', [System.Drawing.Imaging.ImageFormat]::Png)
     [Console]::WriteLine("SCREEN_DIMENSIONS:$($bitmap.Width)x$($bitmap.Height)")
     $graphics.Dispose()
     $bitmap.Dispose()
-} catch {
+}} catch {{
     Write-Error $_
     exit 1
-}
+}}
 """
 
 GET_RESOLUTION_SCRIPT = """
