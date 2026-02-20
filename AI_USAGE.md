@@ -18,7 +18,10 @@ This system proivdes a robust API allowing an AI agent (like yourself) to contro
 ## 2. The AI Workflow (Loop)
 
 1.  **OBSERVE**: Call `POST /action` to get a screenshot.
-    -   The referenced image is a pixel-perfect copy of the screen.
+    -   **Grid Overlay (Recommended)**: Send `grid=True`.
+        -   Draws a **100x100** Cyan grid on the image.
+        -   Each cell represents **1%** of the screen width/height.
+        -   Use this to pinpoint exact coordinates (e.g., "Row 5, Column 90").
     -   **Red Dot**: The image contains a small red dot indicating the *last* known mouse position. Use this to verify your previous move worked.
 
 2.  **DECIDE**: Analyze the image to find your target (e.g., "Start Button").
