@@ -27,9 +27,13 @@ This system proivdes a robust API allowing an AI agent (like yourself) to contro
 2.  **DECIDE**: Analyze the image to find your target (e.g., "Start Button").
     -   Get the coordinates of the target (e.g., `x=50, y=1050`).
 
-3.  **ACT**: Send those coordinates to `POST /action`.
-    -   **Do not scale them**. The backend automatically adjusts for specific Windows DPI or resolution differences.
-    -   Send: `{"type": "click", "x": 50, "y": 1050}`.
+3.  **ACT**: Send coordinates to `POST /action`.
+    -   **Option A: Grid Input (Recommended)**
+        -   Send `grid_x` and `grid_y` (0-100).
+        -   Example: `{"type": "click", "grid_x": 50.5, "grid_y": 10.2}`
+    -   **Option B: Pixel Input**
+        -   Send `x` and `y` based on screenshot pixels.
+        -   Example: `{"type": "click", "x": 960, "y": 540}`
 
 4.  **WAIT**: The system enforces a delay (default 3s) for UI animations before returning the next screenshot.
 

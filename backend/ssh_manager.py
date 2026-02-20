@@ -157,7 +157,7 @@ class SSHManager:
         out, err = self.execute_command(cmd)
         return True, f"Overlay launched on session {self.session_id}. Output: {out}"
 
-    def perform_action(self, action_type, x=0, y=0, text="", grid=False):
+    def perform_action(self, action_type, x=0, y=0, text="", grid=False, grid_x=None, grid_y=None):
         if not self.connect():
             return None, "Not connected", 0, 0
             
@@ -171,17 +171,21 @@ class SSHManager:
         if self.logical_width == 0:
             self._update_resolution()
 
-        # Calculate Scaling
-        # We assume X,Y provided are based on the Physical (Screenshot) pixels.
-        # We need to translate them to Logical (System) pixels for SetCursorPos.
         target_x = x
         target_y = y
-        
-        # We need physical dims to calculate scale. If we processed a screenshot before, we have them.
-        # If not, we might be flying blind on the very first click if it's high DPI.
-        # But usually users "Observe" (get screenshot) then "Act".
-        # If we have tracked physical dimensions:
-        if hasattr(self, 'physical_width') and self.physical_width > 0 and self.logical_width > 0:
+
+        # Priority 1: Grid Coordinates (0-100)
+        if grid_x is not None and grid_y is not None:
+            if self.logical_width > 0 and self.logical_height > 0:
+                target_x = int(self.logical_width * (grid_x / 100.0))
+                target_y = int(self.logical_height * (grid_y / 100.0))
+                print(f"Grid Input: ({grid_x}, {grid_y}) -> Logical Pixels: ({target_x}, {target_y})")
+            else:
+                print("Warning: Logical resolution not known for Grid calc!")
+
+        # Priority 2: Pixel Coordinates (Physical Screenshot Pixels)
+        # We assume X,Y provided are based on the Physical (Screenshot) pixels.
+        elif hasattr(self, 'physical_width') and self.physical_width > 0 and self.logical_width > 0:
             scale_x = self.logical_width / self.physical_width
             scale_y = self.logical_height / self.physical_height
             target_x = int(x * scale_x)
