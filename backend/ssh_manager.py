@@ -137,6 +137,9 @@ class SSHManager:
             
         print(f"Found Session ID: {self.session_id}")
         
+        # Initialize Resolution on Start
+        self._update_resolution()
+
         cmd = OVERLAY_CMD_TEMPLATE.format(session_id=self.session_id)
         
         # We run this asynchronously or check if it blocks. 
