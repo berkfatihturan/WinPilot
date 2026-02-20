@@ -24,14 +24,14 @@ def generate_screenshot_script(draw_grid=False, draw_cursor=True):
     grid_logic = ""
     if draw_grid:
         grid_logic = """
-    # Draw Grid (10x10)
+    # Draw Grid (20x20)
     $pen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(128, [System.Drawing.Color]::Cyan), 1)
     $width = $screen.Bounds.Width
     $height = $screen.Bounds.Height
     
-    for ($i = 1; $i -lt 10; $i++) {
-        $x = [int]($width * $i / 10)
-        $y = [int]($height * $i / 10)
+    for ($i = 1; $i -lt 100; $i++) {
+        $x = [int]($width * $i / 100)
+        $y = [int]($height * $i / 100)
         
         # Vertical Line
         $graphics.DrawLine($pen, $x, 0, $x, $height)
