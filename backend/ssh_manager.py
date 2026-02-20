@@ -175,6 +175,13 @@ class SSHManager:
         if self.logical_width == 0:
             self._update_resolution()
 
+        # Fallback: If Logical Resolution detection failed, but we have Physical (from screenshot)
+        # Assume 100% scaling (Logical = Physical) to allow Grid calc to work.
+        if self.logical_width == 0 and hasattr(self, 'physical_width') and self.physical_width > 0:
+            print(f"Warning: Logical Resolution detection failed. Falling back to Physical ({self.physical_width}x{self.physical_height}).")
+            self.logical_width = self.physical_width
+            self.logical_height = self.physical_height
+
         target_x = x
         target_y = y
 
