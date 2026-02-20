@@ -180,27 +180,12 @@ class SSHManager:
 
         # Priority 1: Grid Coordinates (0-100)
         if grid_x is not None and grid_y is not None:
-             # Ensure we have a resolution
-            if self.logical_width == 0:
-                print("Grid Calc: Logical resolution missing, retrying detection...")
-                self._update_resolution()
-            
-            # Fallback 1: Use Physical if Logical still invalid
-            if self.logical_width == 0 and hasattr(self, 'physical_width') and self.physical_width > 0:
-                print(f"Grid Calc: Logical resolution failed. Falling back to Physical ({self.physical_width}x{self.physical_height}).")
-                self.logical_width = self.physical_width
-                self.logical_height = self.physical_height
-
-            # Fallback 2: Hardcoded safe default (1920x1080) to prevent 0 movement
-            if self.logical_width == 0:
-                 print("Grid Calc: CRITICAL FAILURE. Defaulting to 1920x1080.")
-                 self.logical_width = 1920
-                 self.logical_height = 1080
-
-            # Calculation
-            target_x = int(self.logical_width * (grid_x / 100.0))
-            target_y = int(self.logical_height * (grid_y / 100.0))
-            print(f"Grid Input: ({grid_x}, {grid_y}) -> Logical Pixels: ({target_x}, {target_y}) [Res: {self.logical_width}x{self.logical_height}]")
+            if self.logical_width > 0 and self.logical_height > 0:
+                target_x = int(self.logical_width * (grid_x / 100.0))
+                target_y = int(self.logical_height * (grid_y / 100.0))
+                print(f"Grid Input: ({grid_x}, {grid_y}) -> Logical Pixels: ({target_x}, {target_y})")
+            else:
+                print("Warning: Logical resolution not known for Grid calc!")
 
         # Priority 2: Pixel Coordinates (Physical Screenshot Pixels)
         # We assume X,Y provided are based on the Physical (Screenshot) pixels.
