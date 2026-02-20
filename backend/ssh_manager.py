@@ -19,23 +19,32 @@ class SSHManager:
 
     def _update_resolution(self):
         if not self.connect() or not self.session_id:
-            return
+            return False
 
-        # Run resolution script
+        # Run resolution script (Writes to C:\Windows\Temp\resolution.txt)
         encoded_bytes = base64.b64encode(GET_RESOLUTION_SCRIPT.encode('utf-16le'))
         encoded_str = encoded_bytes.decode('utf-8')
         cmd = f'psexec -accepteula -i {self.session_id} -s powershell -WindowStyle Hidden -ExecutionPolicy Bypass -NoProfile -EncodedCommand {encoded_str}'
         
-        out, err = self.execute_command(cmd)
+        # We don't rely on this output anymore, but we execute it
+        self.execute_command(cmd)
+
+        # Give it a moment to write file? Usually psexec waits for completion so it should be fine.
+        
+        # Read the file content
+        read_cmd = 'type C:\\Windows\\Temp\\resolution.txt'
+        out, err = self.execute_command(read_cmd)
+        
         # Parse LOGICAL_RESOLUTION:1920x1080
-        combined_output = out + "\n" + err
-        match = re.search(r"LOGICAL_RESOLUTION:(\d+)x(\d+)", combined_output)
+        match = re.search(r"LOGICAL_RESOLUTION:(\d+)x(\d+)", out)
         if match:
             self.logical_width = int(match.group(1))
             self.logical_height = int(match.group(2))
             print(f"Detected Logical Resolution: {self.logical_width}x{self.logical_height}")
+            return True
         else:
-            print(f"Failed to detect resolution: {combined_output}")
+            print(f"Failed to detect resolution. Out: {out} Err: {err}")
+            return False
 
     def connect(self):
         # Load config lazy to ensure env vars are loaded
@@ -138,7 +147,8 @@ class SSHManager:
         print(f"Found Session ID: {self.session_id}")
         
         # Initialize Resolution on Start
-        self._update_resolution()
+        if not self._update_resolution():
+            return False, "Failed to detect remote screen resolution. Check if user is logged in."
 
         cmd = OVERLAY_CMD_TEMPLATE.format(session_id=self.session_id)
         

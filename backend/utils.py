@@ -79,7 +79,9 @@ GET_RESOLUTION_SCRIPT = """
 try {
     Add-Type -AssemblyName System.Windows.Forms
     $screen = [System.Windows.Forms.Screen]::PrimaryScreen
-    [Console]::WriteLine("LOGICAL_RESOLUTION:$($screen.Bounds.Width)x$($screen.Bounds.Height)")
+    $res = "LOGICAL_RESOLUTION:$($screen.Bounds.Width)x$($screen.Bounds.Height)"
+    $res | Out-File -FilePath "C:\\Windows\\Temp\\resolution.txt" -Encoding ASCII -Force
+    [Console]::WriteLine($res)
 } catch {
     Write-Error $_
     exit 1
