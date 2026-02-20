@@ -176,12 +176,18 @@ class SSHManager:
 
         # Priority 1: Grid Coordinates (0-100)
         if grid_x is not None and grid_y is not None:
+             # Force update if we don't know resolution yet
+            if self.logical_width == 0:
+                self._update_resolution()
+
             if self.logical_width > 0 and self.logical_height > 0:
-                target_x = int(self.logical_width * (grid_x / 100.0))
-                target_y = int(self.logical_height * (grid_y / 100.0))
+                target_x = int(self.logical_width * (float(grid_x) / 100.0))
+                target_y = int(self.logical_height * (float(grid_y) / 100.0))
                 print(f"Grid Input: ({grid_x}, {grid_y}) -> Logical Pixels: ({target_x}, {target_y})")
             else:
-                print("Warning: Logical resolution not known for Grid calc!")
+                print("Error: Logical resolution not known for Grid calc! Defaulting to 0,0")
+                target_x = 0
+                target_y = 0
 
         # Priority 2: Pixel Coordinates (Physical Screenshot Pixels)
         # We assume X,Y provided are based on the Physical (Screenshot) pixels.
