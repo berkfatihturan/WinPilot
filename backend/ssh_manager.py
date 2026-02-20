@@ -27,23 +27,15 @@ class SSHManager:
         cmd = f'psexec -accepteula -i {self.session_id} -s powershell -WindowStyle Hidden -ExecutionPolicy Bypass -NoProfile -EncodedCommand {encoded_str}'
         
         out, err = self.execute_command(cmd)
-        combined_output = out + "\n" + err
-        print(f"DEBUG RESOLUTION OUTPUT: {combined_output}")
-
         # Parse LOGICAL_RESOLUTION:1920x1080
+        combined_output = out + "\n" + err
         match = re.search(r"LOGICAL_RESOLUTION:(\d+)x(\d+)", combined_output)
         if match:
             self.logical_width = int(match.group(1))
             self.logical_height = int(match.group(2))
             print(f"Detected Logical Resolution: {self.logical_width}x{self.logical_height}")
         else:
-            print(f"Failed to detect resolution. Using fallback.")
-            # Fallback1: Try to parse generic "Width : 1920" output if script failed and printed obj
-            # Fallback2: If we have Physical dimensions from screenshot, use them as temporary logical
-            if hasattr(self, 'physical_width') and self.physical_width > 0:
-                 self.logical_width = self.physical_width
-                 self.logical_height = self.physical_height
-                 print(f"Fallback Logical Resolution (Physical): {self.logical_width}x{self.logical_height}")
+            print(f"Failed to detect resolution: {combined_output}")
 
     def connect(self):
         # Load config lazy to ensure env vars are loaded
@@ -185,18 +177,12 @@ class SSHManager:
 
         # Priority 1: Grid Coordinates (0-100)
         if grid_x is not None and grid_y is not None:
-             # Force update if we don't know resolution yet
-            if self.logical_width == 0:
-                self._update_resolution()
-
             if self.logical_width > 0 and self.logical_height > 0:
-                target_x = int(self.logical_width * (float(grid_x) / 100.0))
-                target_y = int(self.logical_height * (float(grid_y) / 100.0))
+                target_x = int(self.logical_width * (grid_x / 100.0))
+                target_y = int(self.logical_height * (grid_y / 100.0))
                 print(f"Grid Input: ({grid_x}, {grid_y}) -> Logical Pixels: ({target_x}, {target_y})")
             else:
-                print("Error: Logical resolution not known for Grid calc! Defaulting to 0,0")
-                target_x = 0
-                target_y = 0
+                print("Warning: Logical resolution not known for Grid calc!")
 
         # Priority 2: Pixel Coordinates (Physical Screenshot Pixels)
         # We assume X,Y provided are based on the Physical (Screenshot) pixels.
@@ -207,24 +193,17 @@ class SSHManager:
             target_y = int(y * scale_y)
             # print(f"Scaling: {x},{y} -> {target_x},{target_y} (Scale: {scale_x:.2f})")
 
-        # Determine if movement is needed
-        should_move = False
-        if grid_x is not None and grid_y is not None:
-            should_move = True
-        elif x != 0 or y != 0:
-            should_move = True
-        
         # 1. Provide Input
         ps_script = ""
         if action_type == "move":
             ps_script = generate_mouse_move_script(target_x, target_y)
         elif action_type == "click":
-            if should_move:
+            if target_x != 0 or target_y!= 0:
                  ps_script = generate_mouse_move_script(target_x, target_y) + "\n" + CLICK_SCRIPT
             else:
                  ps_script = CLICK_SCRIPT
         elif action_type == "double_click":
-             if should_move:
+             if target_x != 0 or target_y!= 0:
                  ps_script = generate_mouse_move_script(target_x, target_y) + "\n" + DOUBLE_CLICK_SCRIPT
              else:
                  ps_script = DOUBLE_CLICK_SCRIPT
