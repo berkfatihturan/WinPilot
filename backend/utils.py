@@ -28,6 +28,15 @@ try {
     $bitmap = New-Object System.Drawing.Bitmap $screen.Bounds.Width, $screen.Bounds.Height
     $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
     $graphics.CopyFromScreen($screen.Bounds.X, $screen.Bounds.Y, 0, 0, $bitmap.Size)
+    
+    # Draw Red Cursor
+    $cursor = [System.Windows.Forms.Cursor]::Position
+    $relX = $cursor.X - $screen.Bounds.X
+    $relY = $cursor.Y - $screen.Bounds.Y
+    $brush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::Red)
+    $graphics.FillEllipse($brush, $relX - 5, $relY - 5, 10, 10)
+    $brush.Dispose()
+
     $bitmap.Save('C:\\Windows\\Temp\\screenshot.png', [System.Drawing.Imaging.ImageFormat]::Png)
     $bitmap.Save('C:\\Windows\\Temp\\screenshot.png', [System.Drawing.Imaging.ImageFormat]::Png)
     [Console]::WriteLine("SCREEN_DIMENSIONS:$($bitmap.Width)x$($bitmap.Height)")
