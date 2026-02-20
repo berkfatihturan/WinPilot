@@ -198,17 +198,24 @@ class SSHManager:
             target_y = int(y * scale_y)
             # print(f"Scaling: {x},{y} -> {target_x},{target_y} (Scale: {scale_x:.2f})")
 
+        # Determine if movement is needed
+        should_move = False
+        if grid_x is not None and grid_y is not None:
+            should_move = True
+        elif x != 0 or y != 0:
+            should_move = True
+        
         # 1. Provide Input
         ps_script = ""
         if action_type == "move":
             ps_script = generate_mouse_move_script(target_x, target_y)
         elif action_type == "click":
-            if target_x != 0 or target_y!= 0:
+            if should_move:
                  ps_script = generate_mouse_move_script(target_x, target_y) + "\n" + CLICK_SCRIPT
             else:
                  ps_script = CLICK_SCRIPT
         elif action_type == "double_click":
-             if target_x != 0 or target_y!= 0:
+             if should_move:
                  ps_script = generate_mouse_move_script(target_x, target_y) + "\n" + DOUBLE_CLICK_SCRIPT
              else:
                  ps_script = DOUBLE_CLICK_SCRIPT
