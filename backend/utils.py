@@ -29,7 +29,8 @@ try {
     $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
     $graphics.CopyFromScreen($screen.Bounds.X, $screen.Bounds.Y, 0, 0, $bitmap.Size)
     $bitmap.Save('C:\\Windows\\Temp\\screenshot.png', [System.Drawing.Imaging.ImageFormat]::Png)
-    Write-Output "SCREEN_DIMENSIONS:$($bitmap.Width)x$($bitmap.Height)"
+    $bitmap.Save('C:\\Windows\\Temp\\screenshot.png', [System.Drawing.Imaging.ImageFormat]::Png)
+    [Console]::WriteLine("SCREEN_DIMENSIONS:$($bitmap.Width)x$($bitmap.Height)")
     $graphics.Dispose()
     $bitmap.Dispose()
 } catch {

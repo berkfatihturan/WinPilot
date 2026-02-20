@@ -232,7 +232,9 @@ class SSHManager:
         # Expecting: SCREEN_DIMENSIONS:1920x1080
         width = 0
         height = 0
-        match = re.search(r"SCREEN_DIMENSIONS:(\d+)x(\d+)", out)
+        # Check both out and err because psexec/powershell sometimes streams differently
+        combined_output = out + "\n" + err
+        match = re.search(r"SCREEN_DIMENSIONS:(\d+)x(\d+)", combined_output)
         if match:
             width = int(match.group(1))
             height = int(match.group(2))
