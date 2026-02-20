@@ -27,14 +27,23 @@ class SSHManager:
         cmd = f'psexec -accepteula -i {self.session_id} -s powershell -WindowStyle Hidden -ExecutionPolicy Bypass -NoProfile -EncodedCommand {encoded_str}'
         
         out, err = self.execute_command(cmd)
+        combined_output = out + "\n" + err
+        print(f"DEBUG RESOLUTION OUTPUT: {combined_output}")
+
         # Parse LOGICAL_RESOLUTION:1920x1080
-        match = re.search(r"LOGICAL_RESOLUTION:(\d+)x(\d+)", out)
+        match = re.search(r"LOGICAL_RESOLUTION:(\d+)x(\d+)", combined_output)
         if match:
             self.logical_width = int(match.group(1))
             self.logical_height = int(match.group(2))
             print(f"Detected Logical Resolution: {self.logical_width}x{self.logical_height}")
         else:
-            print(f"Failed to detect resolution: {out} {err}")
+            print(f"Failed to detect resolution. Using fallback.")
+            # Fallback1: Try to parse generic "Width : 1920" output if script failed and printed obj
+            # Fallback2: If we have Physical dimensions from screenshot, use them as temporary logical
+            if hasattr(self, 'physical_width') and self.physical_width > 0:
+                 self.logical_width = self.physical_width
+                 self.logical_height = self.physical_height
+                 print(f"Fallback Logical Resolution (Physical): {self.logical_width}x{self.logical_height}")
 
     def connect(self):
         # Load config lazy to ensure env vars are loaded

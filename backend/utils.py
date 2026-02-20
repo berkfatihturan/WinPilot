@@ -79,7 +79,7 @@ GET_RESOLUTION_SCRIPT = """
 try {
     Add-Type -AssemblyName System.Windows.Forms
     $screen = [System.Windows.Forms.Screen]::PrimaryScreen
-    Write-Output "LOGICAL_RESOLUTION:$($screen.Bounds.Width)x$($screen.Bounds.Height)"
+    [Console]::WriteLine("LOGICAL_RESOLUTION:$($screen.Bounds.Width)x$($screen.Bounds.Height)")
 } catch {
     Write-Error $_
     exit 1
