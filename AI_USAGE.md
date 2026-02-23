@@ -41,7 +41,50 @@ This loop repeats until your overarching goal is achieved.
 ### Step 3: Termination
 -   Once your goal is complete, **always** call `POST /stop` to clean up SSH resources.
 
-## 3. Python Client Example
+---
+
+## 3. Deep UI Extraction Mode (AI Eyes)
+
+Standard operation provides a screenshot (raw pixels). For exact, mathematical precision, you can use the **UI Extraction Mode**.
+
+This mode uses the **AI Image Helper API** to perform deep UI tree extraction via `uiautomation` and generates a strict JSON layout map of the screen, resolving issues like occluded (hidden) windows, Z-index overlapping, and invisible background elements.
+
+### How to Use
+
+Instead of calling `POST /action`, call `POST /action_with_ui_map`.
+
+The payload is the exact same, but the response will include a `ui_map_data` array alongside the `screenshot_url`.
+
+```json
+// Example Response from POST /action_with_ui_map
+{
+  "status": "success",
+  "screenshot_url": "/screenshots/screenshot_1701234567.png",
+  "ui_map_data": [
+    {
+      "pencere": "Google Chrome",
+      "z_index": 10,
+      "kutu": [0, 0, 1920, 1080],
+      "elmanlar": [
+        {
+          "tip": "Button",
+          "isim": "Submit",
+          "merkez_koordinat": { "x": 550, "y": 320 }
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Best Practices for Deep Extraction
+1. **Analyze `tip` (Type)**: Look for `Button`, `Edit`, `MenuItem`, etc.
+2. **Find the Exact Pixel**: Read the `merkez_koordinat` (e.g., `x: 550, y: 320`).
+3. **Execute**: On your *next* action, use those exact pixels (e.g., `{"type": "click", "x": 550, "y": 320}`).
+
+---
+
+## 4. Python Client Example
 
 ```python
 import requests

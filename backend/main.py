@@ -112,6 +112,60 @@ def do_action(req: ActionRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+import requests
+
+@app.post("/action_with_ui_map")
+def do_action_with_ui_map(req: ActionRequest):
+    # Create a Future to track the result of this specific job
+    future = Future()
+    
+    # Put the job in the queue
+    action_queue.put((req, future))
+    
+    # Wait for the result (max 60 seconds to prevent indefinite hang)
+    try:
+        # Result is a tuple: (filename, error, width, height)
+        filename, error, width, height = future.result(timeout=60)
+        
+        if error:
+            raise HTTPException(status_code=500, detail=error)
+            
+        base_response = {
+            "status": "success", 
+            "screenshot_url": f"/screenshots/{filename}",
+            "width": width,
+            "height": height
+        }
+        
+        # Now, call the external UI Map API
+        ui_map_url = os.getenv("UI_MAP_API_URL")
+        if not ui_map_url:
+            base_response["ui_map_error"] = "UI_MAP_API_URL environment variable is not set"
+            return base_response
+            
+        payload = {
+            "host": os.getenv("REMOTE_HOST"),
+            "username": os.getenv("REMOTE_USER"),
+            "password": os.getenv("REMOTE_PASS"),
+            "port": 22
+        }
+        
+        try:
+            api_resp = requests.post(f"{ui_map_url}/api/v1/ui/extract/remote", json=payload, timeout=30)
+            if api_resp.status_code == 200:
+                base_response["ui_map_data"] = api_resp.json().get("data", [])
+            else:
+                base_response["ui_map_error"] = f"UI Map API returned status: {api_resp.status_code}"
+        except Exception as api_err:
+             base_response["ui_map_error"] = f"Failed to reach UI Map API: {api_err}"
+             
+        return base_response
+        
+    except TimeoutError:
+        raise HTTPException(status_code=504, detail="Action timed out in queue")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/stop")
 def stop_session():
     ssh_manager.close()
